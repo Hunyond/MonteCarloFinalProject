@@ -1,33 +1,5 @@
-#include <concepts>
-#include <cmath>
 #include <random>
 #include "geometry.hpp"
-#include <utility>
-
-
-template<RandomNumberGenerator GEN>
-const Vector GetIsotropicDirectionMarsaglia (GEN& generateRandomNumber)
-{
-    const float length_squared = 2f;
-    float u = 0;
-    float v = 0;
-    while (length_squared > 1) {
-        u = 2 * generateRandomNumber () - 1;
-        v = 2 * generateRandomNumber () - 1;
-        length_squared = u^2 + v^2;
-    }
-    const float factor = sqrt(1 - length_squared);
-    return {1 - 2 * length_squared, 2 * u * factor, 2 * v * factor};
-}
-
-template<RandomNumberGenerator GEN>
-const Vector GetIsotropicDirectionInAngle (const float alpha, GEN& generateRandomNumber)
-{
-    const float nz = cos(alpha) + (1-cos(alpha)) * generateRandomNumber(); // cos(theta)
-    const float theta = acos(nz); // polar angle
-    const float beta = 2 * M_PI * generateRandomNumber(); // azimuthal angle
-    return  {sin(theta) * cos(beta), sin(theta) * sin(beta), nz};
-}
 
 Vector TransfromDirection (const Vector& direction, const Vector& axis)
 {
@@ -40,8 +12,8 @@ Vector TransfromDirection (const Vector& direction, const Vector& axis)
     }
 
     const float s = std::sqrt(s_squared);
-    const float inv_s = 1.0f / s;
-    if (inv_s == NAN) {inv_s == 0.0f;}
+    float inv_s = 1.0f / s;
+    if (std::isnan(inv_s)) { inv_s = 0.0f; }
 
     const float t11 = ay * inv_s;
     const float t12 = ax * az * inv_s;
@@ -61,11 +33,11 @@ Vector TransfromDirection (const Vector& direction, const Vector& axis)
 
 
 //Can only be used for planes parallel to the x-y plane
-float inline GetDistanceToPlane (const Vector& point, const Vector& dir, const float ZCoord)
+float GetDistanceToPlane (const Vector& point, const Vector& dir, const float ZCoord)
 {
     const float pz = point.z;
     const float nz = dir.z;
-    if (abs (nz) < 1e-4f) {
+    if (std::abs (nz) < 1e-4f) {
         return INFINITY;
     }
     return (ZCoord - pz) / (nz);
@@ -73,7 +45,7 @@ float inline GetDistanceToPlane (const Vector& point, const Vector& dir, const f
 
 
 
-std::pair<float, float> inline GetDistanceToCylinderMantle (const Vector& point, const Vector& dir, const float R)
+std::pair<float, float> GetDistanceToCylinderMantle (const Vector& point, const Vector& dir, const float R)
 {
     const float px = point.x;
     const float py = point.y;
@@ -86,11 +58,11 @@ std::pair<float, float> inline GetDistanceToCylinderMantle (const Vector& point,
     if (discriminant < 0) {
         return {INFINITY, INFINITY};
     }
-    const float sqrt_discriminant = sqrt(discriminant);
+    const float sqrt_discriminant = std::sqrt(discriminant);
     return { (-b + sqrt_discriminant) / (2 * a), (-b - sqrt_discriminant) / (2 * a)};
 }
 
-float inline GetDistanceToCylinderIn (const Vector& point, const Vector& dir, const float R, const float topOfCyl, const float botOfCyl)
+float GetDistanceToCylinderIn (const Vector& point, const Vector& dir, const float R, const float topOfCyl, const float botOfCyl)
 {
     auto [d1, d2] = GetDistanceToCylinderMantle (point, dir, R);
     const float dtop = GetDistanceToPlane (point, dir, topOfCyl);
@@ -98,7 +70,7 @@ float inline GetDistanceToCylinderIn (const Vector& point, const Vector& dir, co
     return std::min (std::max (d1, d2), std::max (dtop, dbot));
 }
 
-float inline GetDistanceToCylinderOut (const Vector& point, const Vector& dir, const float R, const float topOfCyl, const float botOfCyl)
+float GetDistanceToCylinderOut (const Vector& point, const Vector& dir, const float R, const float topOfCyl, const float botOfCyl)
 {
     const float px = point.x;
     const float py = point.y;
@@ -115,7 +87,9 @@ float inline GetDistanceToCylinderOut (const Vector& point, const Vector& dir, c
     if (dMinCyl == INFINITY || dMaxCyl < 0 || (pz > topOfCyl && dz > 0) || (pz < botOfCyl && dz < 0)) {
         return INFINITY;
     }
+
     float dCyl = 0;
+
     if (d1 * d2 < 0) {
         dCyl = dMinCyl;
     } else {
@@ -126,8 +100,6 @@ float inline GetDistanceToCylinderOut (const Vector& point, const Vector& dir, c
     if (zCyl < botOfCyl || zCyl > topOfCyl) {
         dCyl = INFINITY;
     }
-
-
 
     float dTop = GetDistanceToPlane (point, dir, topOfCyl);
     const float xTop = px + dTop * dx;
@@ -143,4 +115,13 @@ float inline GetDistanceToCylinderOut (const Vector& point, const Vector& dir, c
         dBot = INFINITY;
     }
     return std::min (dCyl, std::min (dTop, dBot));
+}
+
+std::pair<bool, Vector> HitsCylinder (const Vector& point, const Vector& dir, const float R, const float topOfCyl, const float botOfCyl)
+{
+    const auto res = GetDistanceToCylinderOut (point, dir, R, topOfCyl, botOfCyl);
+    if (res == INFINITY) {
+        return {false, {0.0f, 0.0f, 0.0f}};
+    }
+    return {true, {point.x + dir.x * res, point.y + dir.y * res, point.z + dir.z * res}};
 }
