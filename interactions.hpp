@@ -2,8 +2,8 @@
 #include <mutex>
 #include <vector>
 #include <map>
+#include <atomic>
 
-#include <cmath>
 #include <thread>
 #include <iostream>
 #include <algorithm>
@@ -12,7 +12,7 @@
 #include "crosssections.hpp"
 
 template<RandomNumberGenerator GEN>
-void TrackPhoton (GEN& getRandomNumber, const Vector& position, const Vector&  direction,const float energy_in, const std::map<float, InteractionData>& corssSections, std::vector<float>&  results, std::mutex& results_mutex,const float R, const float H, const float Ro);
+void TrackPhoton (GEN& getRandomNumber, const Vector& position, const Vector&  direction,const float energy_in, const std::map<float, InteractionData>& corssSections, std::vector<float>&  results, std::mutex& results_mutex,const float R, const float H);
 
 template<RandomNumberGenerator GEN>
 std::pair<float, float> PhotonAngleAndEnergy (GEN& getRandomNumber, float energy_in);
@@ -23,12 +23,12 @@ std::pair<Vector, float> ComptonScatter (GEN& getRandomNumber, const Vector& dir
 
 
 template<RandomNumberGenerator GEN>
-void PairProduction (GEN& getRandomNumber, const Vector& position, const Vector&  direction,const float energy_in, const std::map<float, InteractionData>& crossSections, std::vector<float>&  results, std::mutex& results_mutex,const float R, const float H, const float Ro);
+void PairProduction (GEN& getRandomNumber, const Vector& position, const Vector&  direction,const float energy_in, const std::map<float, InteractionData>& crossSections, std::vector<float>&  results, std::mutex& results_mutex,const float R, const float H);
 
 
 
 template<RandomNumberGenerator GEN>
-void TrackPhoton (GEN& getRandomNumber, const Vector& position, const Vector&  direction,const float energy_in, const std::map<float, InteractionData>& corssSections, std::vector<float>&  results, std::mutex& results_mutex,const float R, const float H, const float Ro)
+void TrackPhoton (GEN& getRandomNumber, const Vector& position, const Vector&  direction,const float energy_in, const std::map<float, InteractionData>& corssSections, std::vector<float>&  results, std::mutex& results_mutex,const float R, const float H)
 {
     Vector currenctPosition = position;
     Vector currentDirection = direction;
@@ -48,17 +48,20 @@ void TrackPhoton (GEN& getRandomNumber, const Vector& position, const Vector&  d
     };
     std::sort (interactionList.begin (), interactionList.end (), [](const auto& a, const auto& b) { return a.second < b.second; });
 
-    std::cout << "Photon energy: " << energy_in << " MeV" << std::endl;
+
+    //std::cout << "Photon energy: " << energy_in << " MeV" << std::endl;
 
     while (isPhotonAlive) {
-        distanceTravelled = -std::log ((float)getRandomNumber ()) / sigma; 
-        distanceToCylinder = GetDistanceToCylinderIn (currenctPosition, currentDirection, R, H, Ro); // Get the distance to the cylinder
+        float rand1 = getRandomNumber ();
+        distanceTravelled = -std::log (rand1) / sigma; 
+        distanceToCylinder = GetDistanceToCylinderIn (currenctPosition, currentDirection, R, H / 2.0f, -H /  2.0f); // Get the distance to the cylinder
         if (distanceToCylinder < distanceTravelled) {
             isPhotonAlive = false; // exiits cylinder
+            break;
         }
-        currenctPosition.x += currentDirection.x * distanceToCylinder;
-        currenctPosition.y += currentDirection.y * distanceToCylinder;
-        currenctPosition.z += currentDirection.z * distanceToCylinder;
+        currenctPosition.x += currentDirection.x * distanceTravelled;
+        currenctPosition.y += currentDirection.y * distanceTravelled;
+        currenctPosition.z += currentDirection.z * distanceTravelled;
 
         float rand = getRandomNumber ();
         std::pair<Vector, float> res = {Vector{0.0f, 0.0f, 0.0f}, 0.0f};
@@ -71,7 +74,7 @@ void TrackPhoton (GEN& getRandomNumber, const Vector& position, const Vector&  d
                         res = ComptonScatter (getRandomNumber, currentDirection, energy);
                         currentDirection = res.first; // Update direction after scattering
                         energy = res.second; // Update energy after scattering
-                        energyDeposit += energy_in - res.second; // Energy deposited in the material
+                        energyDeposit += energy - res.second; // Energy deposited in the material
                         currentCrossSection = getCrossSectionsAtEnergy (corssSections, energy);
                         sigma = currentCrossSection.incoherentScatter + currentCrossSection.photoelAbsorb + currentCrossSection.pairProd; // Total cross-section
                         interactionList = {
@@ -88,17 +91,22 @@ void TrackPhoton (GEN& getRandomNumber, const Vector& position, const Vector&  d
                     case 3: // Pair production
                         energyDeposit += 1.022; // Energy deposited in the material
                         isPhotonAlive = false; // Photon is absorbed
-                        PairProduction (getRandomNumber, currenctPosition, corssSections, results, results_mutex, R, H, Ro); // Pair production
+                        PairProduction (getRandomNumber, currenctPosition, corssSections, results, results_mutex, R, H); // Pair production
                         break;
                 }
                 break;
             }
         }
     }
-    std::cout << "fianlly here" << energyDeposit << " MeV" << std::endl;
+    //std::cout << "fianlly here" << energyDeposit << " MeV" << std::endl;
     std::lock_guard<std::mutex> lock (results_mutex);
-    results.push_back (energyDeposit); // Store the energy deposit in the results vector
 
+    if (energyDeposit > 0.0f) {
+        results.push_back (energyDeposit); // Store the energy deposit in the results vector
+    } 
+
+
+    
 }
 
 template<RandomNumberGenerator GEN>
@@ -143,7 +151,7 @@ Vector DirectionInComptonScatter (GEN& getRandomNumber, const float angle)
 {
     const float nz = std::cos (angle);
     const float rho = std::sin (angle);
-    const float phi = 2 * M_PI * getRandomNumber ();
+    const float phi = 2 * myMPI * getRandomNumber ();
 
     return {rho * std::cos (phi), rho * std::sin (phi), nz};
 }
@@ -158,10 +166,10 @@ std::pair<Vector, float> ComptonScatter (GEN& getRandomNumber, const Vector& dir
 }
 
 template<RandomNumberGenerator GEN>
-void PairProduction (GEN& getRandomNumber, const Vector& position, const std::map<float, InteractionData>& crossSections, std::vector<float>&  results, std::mutex& results_mutex,const float R, const float H, const float Ro)
+void PairProduction (GEN& getRandomNumber, const Vector& position, const std::map<float, InteractionData>& crossSections, std::vector<float>&  results, std::mutex& results_mutex,const float R, const float H)
 {
     Vector direction1 = GetIsotropicDirectionMarsaglia (getRandomNumber);
     Vector direction2 = {-1 * direction1.x, -1 * direction1.y, -1 * direction1.z};
-    TrackPhoton (getRandomNumber, position, direction1, 0.511f, crossSections, results, results_mutex, R, H, Ro);
-    TrackPhoton (getRandomNumber, position, direction2, 0.511f, crossSections, results, results_mutex, R, H, Ro);
+    TrackPhoton (getRandomNumber, position, direction1, 0.511f, crossSections, results, results_mutex, R, H);
+    TrackPhoton (getRandomNumber, position, direction2, 0.511f, crossSections, results, results_mutex, R, H);
 }

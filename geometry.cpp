@@ -90,7 +90,7 @@ float GetDistanceToCylinderOut (const Vector& point, const Vector& dir, const fl
 
     float dCyl = 0;
 
-    if (d1 * d2 < 0) {
+    if (d1 * d2 > 0) {
         dCyl = dMinCyl;
     } else {
         dCyl = dMaxCyl;

@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include <concepts>
 #include <utility>
 
@@ -13,6 +14,8 @@ struct Vector
     float y;
     float z;
 };
+
+constexpr float myMPI = 3.1415927f;
 
 template<RandomNumberGenerator GEN>
 const Vector GetIsotropicDirectionMarsaglia (GEN& generateRandomNumber)
@@ -34,7 +37,7 @@ const Vector GetIsotropicDirectionInAngle (const float alpha, GEN& generateRando
 {
     const float nz = std::cos (alpha) + (1 - std::cos (alpha)) * generateRandomNumber (); // cos(theta)
     const float theta = std::acos (nz); // polar angle
-    const float beta = 2 * M_PI * generateRandomNumber (); // azimuthal angle
+    const float beta = 2 * myMPI * generateRandomNumber (); // azimuthal angle
     return  {std::sin (theta) * std::cos (beta), std::sin (theta) * std::sin (beta), nz};
 }
 
