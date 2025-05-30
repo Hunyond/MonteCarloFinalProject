@@ -89,7 +89,7 @@ std::pair<float, float> PrepareSimulation (const int simId, const int numPhotons
 
 
 
-int main (void)
+/*int main (void)
 {
 
     const Vector source = {3.0f, -3.0f, 2.0f};
@@ -109,10 +109,10 @@ int main (void)
     std::cout << "Total efficiency: " << efficecnies.first << "%" << std::endl;
     std::cout << "Interaction efficiency: " << efficecnies.second << "%" << std::endl;
 
-}
+}*/
 
-/*
-int main (void)
+
+/*int main (void)
 {
 
     const Vector source = {4.0f, 4.0f, 0.0f};
@@ -133,3 +133,88 @@ int main (void)
     std::cout << "Interaction efficiency: " << efficecnies.second << "%" << std::endl;
 
 }*/
+
+/*int main (void)
+{
+
+    const auto sources = linspace3D (coordinate{1.0f, 3.5f, 2.0f}, coordinate{-4.0, -1.5, 2.0}, 11);
+    const float E = 0.6617f; // Energy in MeV
+    const float R = 2.5f; // Radius of the cylinder in cm
+    const float H = 3.0f; // Height of the cylinder in cm
+    const float Ro = 3.67f;
+    const float FWHM = 6.0 / 1000.0f; // FWHM in MeV
+    const long long numberOfNeutrons = 100000000; // Number of neutrons to simulate
+    std::map<float, InteractionData> crossSections = loadPhotonDataToMap ("corsssections.txt", Ro); // Load the cross-section data from a file
+
+
+    std::vector<float> totelEfficiencies;
+    std::vector<float> interactionEfficiencies;
+
+    int simId = 0;
+    for (const auto& source : sources) {
+        std::cout << "----------------------------------------------------------------------" << std::endl;
+        std::cout << "Simulation ID: " << simId << std::endl;
+        std::cout << "----------------------------------------------------------------------" << std::endl;
+        std::cout << "Source position: (" << source.x << ", " << source.y << ", " << source.z << ")" << std::endl;
+        std::cout << "Energy: " << E << " MeV" << std::endl;
+        auto efficecnies = PrepareSimulation (simId, numberOfNeutrons, {source.x, source.y, source.z}, crossSections, E, R, H, FWHM);
+        std::cout << "Total efficiency: " << efficecnies.first << "%" << std::endl;
+        totelEfficiencies.push_back (efficecnies.first);
+        interactionEfficiencies.push_back (efficecnies.second);
+        std::cout << "Interaction efficiency: " << efficecnies.second << "%" << std::endl;
+        simId++;
+    }
+    std::cout << "----------------------------------------------------------------------" << std::endl;
+    std::cout << "Total efficiencies: ";
+    for (const auto& eff : totelEfficiencies) {
+        std::cout << eff;
+    }
+    std::cout << std::endl;
+    std::cout << "Interaction efficiencies: ";
+    for (const auto& eff : interactionEfficiencies) {
+        std::cout << eff;
+    }
+
+}*/
+
+int main (void)
+{
+
+    const Vector source = {4.0f, 4.0f, 0.0f};
+    std::vector Energies = linspace(0.4, 4.0, 10);
+    const float R = 3.0f; // Radius of the cylinder in cm
+    const float H = 5.0f; // Height of the cylinder in cm
+    const float Ro = 3.67f;
+    const float FWHM = 8.0 / 1000.0f; // FWHM in MeV
+    const long long numberOfNeutrons = 100000000; // Number of neutrons to simulate
+    std::map<float, InteractionData> crossSections = loadPhotonDataToMap ("corsssections.txt", Ro); // Load the cross-section data from a file
+
+    int cnt = 0;
+    std::vector<float> totelEfficiencies;
+    std::vector<float> interactionEfficiencies;
+    for (const auto& E : Energies) {
+        std::cout << "----------------------------------------------------------------------" << std::endl;
+        std::cout << "Simulation for energy: " << E << " MeV" << std::endl;
+        std::cout << "----------------------------------------------------------------------" << std::endl;
+        std::cout << "Source position: (" << source.x << ", " << source.y << ", " << source.z << ")" << std::endl;
+        auto efficecnies = PrepareSimulation (cnt, numberOfNeutrons, source, crossSections, E, R, H, FWHM);
+        totelEfficiencies.push_back (efficecnies.first);
+        interactionEfficiencies.push_back (efficecnies.second);
+        cnt++;
+    }
+
+    std::cout << "----------------------------------------------------------------------" << std::endl;
+    std::cout << "Total efficiencies: ";
+    for (const auto& eff : totelEfficiencies) {
+        std::cout << eff << ", ";
+    }
+    std::cout << std::endl;
+    std::cout << "Interaction efficiencies: ";
+    for (const auto& eff : interactionEfficiencies) {
+        std::cout << eff << ", ";
+    }
+
+}
+
+
+

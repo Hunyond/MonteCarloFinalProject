@@ -100,7 +100,7 @@ float GetStatisticalUncertainty (const std::vector<float>& data)
 void ApplyFWHM (std::vector<float>& data, float fwhm)
 {
     const auto sigma = fwhm / 2.3548;
-    const auto mean = std::accumulate(data.begin (), data.end (), 0.0f) / data.size ();
+    const auto mean = 0;// std::accumulate(data.begin (), data.end (), 0.0f) / data.size ();
     std::random_device rd;
     std::mt19937 gen (rd ());
     std::normal_distribution<> dist (mean, sigma);

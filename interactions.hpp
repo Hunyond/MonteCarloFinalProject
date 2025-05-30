@@ -66,15 +66,14 @@ void TrackPhoton (GEN& getRandomNumber, const Vector& position, const Vector&  d
         float rand = getRandomNumber ();
         std::pair<Vector, float> res = {Vector{0.0f, 0.0f, 0.0f}, 0.0f};
         
-        currentDirection = GetIsotropicDirectionMarsaglia (getRandomNumber);
         for (const auto& interaction : interactionList) {
             if (rand < interaction.second / sigma) {
                 switch (interaction.first) {
                     case 1: // Compton scattering
                         res = ComptonScatter (getRandomNumber, currentDirection, energy);
                         currentDirection = res.first; // Update direction after scattering
-                        energy = res.second; // Update energy after scattering
-                        energyDeposit += energy - res.second; // Energy deposited in the material
+                        energyDeposit = energy - res.second; // Energy deposited in the material
+                        energy = res.second;
                         currentCrossSection = getCrossSectionsAtEnergy (corssSections, energy);
                         sigma = currentCrossSection.incoherentScatter + currentCrossSection.photoelAbsorb + currentCrossSection.pairProd; // Total cross-section
                         interactionList = {

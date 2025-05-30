@@ -3,9 +3,19 @@
 
 Vector TransfromDirection (const Vector& direction, const Vector& axis)
 {
-    const float ax = axis.x;
-    const float ay = axis.y;
-    const float az = axis.z;
+    float ax = axis.x;
+    float ay = axis.y;
+    float az = axis.z;
+    float len = std::sqrt (ax * ax + ay * ay + az * az);
+
+    if (len == 0.0f) {
+        len = 0.000000001f;
+    }
+    
+    ax = ax / len;
+    ay = ay / len;
+    az = az / len;
+
     const float s_squared = (ax * ax + ay * ay);
     if (s_squared < 1e-6f) {
         return az > 0.0f ? direction : Vector{ -direction.x, -direction.y, -direction.z };
